@@ -154,3 +154,37 @@ fn the_module_is_importable_by_name() {
     let value = h.property(&ns, "out").unwrap();
     assert_eq!(text_of(&value).unwrap(), r#"[{"v":"hi"}]true"#);
 }
+
+
+#[test]
+fn sqlite_error_has_code() {
+    // run() is a plain-script context; Database is already a global there.
+    let mut h = Harness::with_modules();
+    let out = run(
+        &mut h,
+        "const db = new Database(':memory:');
+         let code = 'none';
+         try { db.exec('NOT VALID SQL!!!'); } catch(e) { code = e.code ?? 'missing'; }
+         return code;",
+    );
+    // rusqlite surfaces syntax errors as SQLITE_ERROR
+    assert_eq!(out, "SQLITE_ERROR");
+}
+
+#[test]
+fn sqlite_busy_code_surfaces() {
+    // Can't easily trigger SQLITE_BUSY in a single-connection test, but verify
+    // SQLiteError constructor extracts a code from a prefixed message string.
+    // Uses h.module() because SQLiteError is not a plain-script global.
+    let mut h = Harness::with_modules();
+    let ns = h
+        .module(
+            "app",
+            "import { SQLiteError } from 'xmas:sqlite';
+             const e = new SQLiteError('SQLITE_BUSY: database is locked');
+             export const out = e.code;",
+        )
+        .unwrap();
+    let value = h.property(&ns, "out").unwrap();
+    assert_eq!(text_of(&value).unwrap(), "SQLITE_BUSY");
+}

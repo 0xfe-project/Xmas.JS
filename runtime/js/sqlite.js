@@ -3,9 +3,18 @@
   // what is here is the shape scripts touch: Database, Statement, transactions, parameter binding.
 
   class SQLiteError extends Error {
-    constructor(message) {
+    code;
+    constructor(message, code) {
       super(message);
       this.name = 'SQLiteError';
+      // Normalize SQLite error codes: rusqlite surfaces them as "SqliteFailure(Error { code: ..., extended_code: N }, Some("..."))"
+      // but also as plain "SQLITE_BUSY: database is locked" style strings.
+      if (code !== undefined) {
+        this.code = code;
+      } else {
+        const m = /\b(SQLITE_[A-Z_]+)\b/.exec(message);
+        this.code = m ? m[1] : undefined;
+      }
     }
   }
 
@@ -139,6 +148,8 @@
         };
       }
       this.#safe = !!options.safeIntegers;
+      // strict: SQLite doesn't have a strict-mode open flag; we accept and ignore this option
+      // for compatibility with bun:sqlite which accepts it.
       const mode = options.readonly ? 'readonly' : options.create === false ? 'readwrite' : 'create';
       this.filename = String(filename);
       this.#id = call(__sqlite_open, this.filename, mode);

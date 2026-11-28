@@ -137,6 +137,45 @@ fn run(conn: &Connection, sql: &str, params: &Json) -> Result<Json, String> {
     Ok(Json::Object(answer))
 }
 
+/// Format a rusqlite error as "SQLITE_CODE: message" so the JS SQLiteError
+/// constructor can extract the code via regex.
+fn sqlite_message(error: &rusqlite::Error) -> String {
+    use rusqlite::ErrorCode;
+    if let rusqlite::Error::SqliteFailure(e, ref msg) = *error {
+        let code = match e.code {
+            ErrorCode::InternalMalfunction               => "SQLITE_INTERNAL",
+            ErrorCode::PermissionDenied                  => "SQLITE_PERM",
+            ErrorCode::OperationAborted                  => "SQLITE_ABORT",
+            ErrorCode::DatabaseBusy                      => "SQLITE_BUSY",
+            ErrorCode::DatabaseLocked                    => "SQLITE_LOCKED",
+            ErrorCode::OutOfMemory                       => "SQLITE_NOMEM",
+            ErrorCode::ReadOnly                          => "SQLITE_READONLY",
+            ErrorCode::OperationInterrupted              => "SQLITE_INTERRUPT",
+            ErrorCode::SystemIoFailure                   => "SQLITE_IOERR",
+            ErrorCode::DatabaseCorrupt                   => "SQLITE_CORRUPT",
+            ErrorCode::NotFound                          => "SQLITE_NOTFOUND",
+            ErrorCode::DiskFull                          => "SQLITE_FULL",
+            ErrorCode::CannotOpen                        => "SQLITE_CANTOPEN",
+            ErrorCode::FileLockingProtocolFailed         => "SQLITE_PROTOCOL",
+            ErrorCode::SchemaChanged                     => "SQLITE_SCHEMA",
+            ErrorCode::TooBig                            => "SQLITE_TOOBIG",
+            ErrorCode::ConstraintViolation               => "SQLITE_CONSTRAINT",
+            ErrorCode::TypeMismatch                      => "SQLITE_MISMATCH",
+            ErrorCode::ApiMisuse                         => "SQLITE_MISUSE",
+            ErrorCode::NoLargeFileSupport                => "SQLITE_NOLFS",
+            ErrorCode::AuthorizationForStatementDenied   => "SQLITE_AUTH",
+            ErrorCode::ParameterOutOfRange               => "SQLITE_RANGE",
+            ErrorCode::NotADatabase                      => "SQLITE_NOTADB",
+            _                                            => "SQLITE_ERROR",
+        };
+        let detail = msg.as_deref().unwrap_or("unknown error");
+        format!("{code}: {detail}")
+    } else {
+        // Surface the variant name so we can see which branch is taken in tests
+        format!("SQLITE_ERROR: {}", error)
+    }
+}
+
 pub fn install(driver: &mut Driver) -> Result<(), String> {
     let global = driver
         .context()
@@ -171,7 +210,7 @@ pub fn install(driver: &mut Driver) -> Result<(), String> {
                             table.1.insert(id, conn);
                             Ok(Value::Float(f64::from(id)))
                         }
-                        Err(error) => Err(super::throw(scope, &error.to_string())),
+                        Err(error) => Err(super::throw(scope, &sqlite_message(&error))),
                     }
                 },
             )
@@ -232,7 +271,7 @@ pub fn install(driver: &mut Driver) -> Result<(), String> {
                     };
                     match conn.execute_batch(&sql) {
                         Ok(()) => Ok(Value::Undefined),
-                        Err(error) => Err(super::throw(scope, &error.to_string())),
+                        Err(error) => Err(super::throw(scope, &sqlite_message(&error))),
                     }
                 },
             )
@@ -258,7 +297,7 @@ pub fn install(driver: &mut Driver) -> Result<(), String> {
                                 stmt.column_names().into_iter().map(str::to_string).collect();
                             text(&Json::from(names).to_string())
                         }
-                        Err(error) => Err(super::throw(scope, &error.to_string())),
+                        Err(error) => Err(super::throw(scope, &sqlite_message(&error))),
                     }
                 },
             )
