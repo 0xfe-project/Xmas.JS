@@ -7,17 +7,21 @@ publish = false
 description = "JavaScript engine embedding layer: realm driver, host services and compile"
 
 [features]
-default = ["sqlite"]
+default = ["sqlite", "image-module"]
 # xmas:sqlite, a synchronous SQLite interface on rusqlite with SQLite compiled in from its C
 # amalgamation (`bundled`): needs a C compiler at build time, no system library at run time.
 # Build with --no-default-features to leave it, and its C compile, out.
 sqlite = ["dep:rusqlite"]
+# xmas:image – Bun.Image-compatible API: decode, resize, encode JPEG/WebP/PNG.
+image-module = ["dep:image"]
 # xmas compile: bundle via rolldown (needs tokio runtime at build time, not runtime).
 compile = ["dep:rolldown", "dep:tokio"]
 rolldown = ["dep:rolldown"]
 
 [dependencies]
 rusqlite = { version = "0.37", optional = true, default-features = false, features = ["bundled"] }
+# xmas:image – encode/decode JPEG, WebP, PNG; resize. Bundled pure-Rust codecs, no system libs.
+image = { version = "0.25", optional = true, default-features = false, features = ["jpeg", "png", "webp", "gif"] }
 # The package manager is a module here (src/package), not a crate: an import that names a package
 # nobody installed asks it for one (src/deps.rs) with a plain function call.
 # The engine is a git dependency, pinned to a rev: the embedder-owned ArrayBuffer entry this

@@ -29,6 +29,8 @@ pub mod server;
 pub mod sockets;
 #[cfg(feature = "sqlite")]
 pub mod sqlite;
+#[cfg(feature = "image-module")]
+pub mod image;
 pub mod testing;
 pub mod stream;
 pub mod stream_web;
@@ -90,6 +92,8 @@ pub fn install(driver: &mut Driver) -> Result<(), String> {
     realm::install(driver)?;
     #[cfg(feature = "sqlite")]
     sqlite::install(driver)?;
+    #[cfg(feature = "image-module")]
+    image::install(driver)?;
     // $ runs a command through the platform shell, and needs nothing above it.
     exec::install(driver)?;
     // child_process builds Readables and Writables out of the same host, so it comes after stream
