@@ -189,6 +189,8 @@ impl Harness {
         context
             .execute_module(&bytecode)
             .map_err(|error| format!("failed to execute {name}: {error}"))?;
+        // Drain jobs/timers until idle so top-level await resolves before we read exports.
+        self.driver.run_until_idle_blocking().map_err(|e| format!("idle after execute: {e}"))?;
         self.driver.eval("globalThis.__xmas_ns")
     }
 
