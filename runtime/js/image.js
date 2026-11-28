@@ -95,6 +95,10 @@
 
     metadata() {
       return Promise.resolve().then(() => {
+        // If this image was resized, return the resized dimensions
+        if (this.#pixelsB64) {
+          return { width: this.#width, height: this.#height };
+        }
         const json = __image_metadata(this.#bytesB64);
         return JSON.parse(json);
       });
